@@ -1,0 +1,42 @@
+# зависимости
+/node_modules
+/.pnp
+.pnp.*
+
+# сборка
+/.next/
+/out/
+/build
+/coverage
+*.tsbuildinfo
+next-env.d.ts
+
+# секреты и локальные настройки
+# .env.example должен лежать в репозитории — из него видно, какие
+# переменные нужны на новой машине и на деплое
+.env*
+!.env.example
+
+# сгенерированный клиент Prisma — пересоздаётся на npm install (postinstall)
+/src/generated
+
+# локальная база embedded-postgres: данные, а не код
+/.pgdata
+
+# ключи и сертификаты
+*.pem
+
+# логи
+npm-debug.log*
+yarn-debug.log*
+.pnpm-debug.log*
+
+# деплой
+.vercel
+
+# ос и редакторы
+.DS_Store
+Thumbs.db
+/.idea
+/.vscode/*
+!/.vscode/extensions.json

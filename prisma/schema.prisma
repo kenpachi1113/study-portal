@@ -1,0 +1,276 @@
+// Учебный портал медколледжа — схема данных
+//
+// Главное правило: материал не виден никому по умолчанию.
+// Видимость даёт только запись TopicRelease (тема × подгруппа × даты).
+//
+// Второе правило: оценки и посещаемость висят на ClassSession (конкретная
+// пара у конкретной подгруппы), а не на Topic. Одна тема идёт у четырёх
+// подгрупп в четыре разные даты — иначе журнал по датам не собрать.
+
+// Rust-free клиент (driver adapters): без движка в бандле, быстрый холодный старт
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+// В Prisma 7 строки подключения в схеме больше не живут:
+//   • приложение подключается через driver adapter — см. src/lib/prisma.ts
+//     (там DATABASE_URL, обязательно pooled-хост);
+//   • миграции берут URL из prisma.config.ts (там DIRECT_URL, без -pooler).
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  TEACHER
+  STUDENT
+  OBSERVER // куратор/завуч: журнал только на чтение
+}
+
+enum TopicType {
+  LECTURE
+  PRACTICE
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+enum SubmissionStatus {
+  SUBMITTED // ждёт проверки
+  RETURNED // возвращена на доработку = открыта пересдача
+  ACCEPTED // принята
+}
+
+enum FinalGradeRule {
+  LAST // итог = последняя попытка
+  BEST // итог = лучшая попытка
+}
+
+// ─────────────────────────────────────────────  люди и структура
+
+model Group {
+  id           String     @id @default(cuid())
+  title        String // «МС-24»
+  academicYear String // «2026/2027» — чтобы прошлые наборы не мешались
+  archived     Boolean    @default(false)
+  subgroups    Subgroup[]
+  createdAt    DateTime   @default(now())
+
+  @@unique([title, academicYear])
+}
+
+model Subgroup {
+  id       String @id @default(cuid())
+  groupId  String
+  group    Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  title    String // «1», «2»
+
+  students User[]
+  releases TopicRelease[]
+  sessions ClassSession[]
+
+  @@unique([groupId, title])
+}
+
+model User {
+  id         String  @id @default(cuid())
+  login      String  @unique // ivanov_ai — генерится транслитом
+  lastName   String
+  firstName  String
+  middleName String?
+
+  role         Role      @default(STUDENT)
+  subgroupId   String?
+  subgroup     Subgroup? @relation(fields: [subgroupId], references: [id], onDelete: SetNull)
+  isActive     Boolean   @default(true) // отчисленный = false, оценки остаются
+
+  // вход без почты: одноразовый код → обязательная смена пароля
+  passwordHash       String?
+  mustSetPassword    Boolean   @default(true)
+  loginCodeHash      String?
+  loginCodeExpiresAt DateTime?
+
+  // защита от перебора шестизначного кода
+  failedAttempts Int       @default(0)
+  lockedUntil    DateTime?
+  lastLoginAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  attendance  Attendance[]
+  submissions Submission[]
+  grades      Grade[]      @relation("StudentGrades")
+  gradesGiven Grade[]      @relation("GradedBy")
+  auditLogs   AuditLog[]
+
+  @@index([subgroupId])
+  @@index([role])
+}
+
+// ─────────────────────────────────────────────  контент
+
+model Course {
+  id          String         @id @default(cuid())
+  title       String
+  description String?
+  maxGrade    Int            @default(5) // 5 | 100 | 1 (зачёт)
+  gradeRule   FinalGradeRule @default(LAST)
+  topics      Topic[]
+  createdAt   DateTime       @default(now())
+}
+
+model Topic {
+  id       String    @id @default(cuid())
+  courseId String
+  course   Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  order    Int
+  type     TopicType
+  title    String
+  bodyHtml String? // текст лекции
+  taskHtml String? // формулировка задания для практической
+  maxScore Int?
+
+  materials   Material[]
+  releases    TopicRelease[]
+  sessions    ClassSession[]
+  submissions Submission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([courseId, order])
+}
+
+model Material {
+  id         String   @id @default(cuid())
+  topicId    String
+  topic      Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  fileName   String
+  storageKey String   @unique // ключ в R2, наружу не отдаётся
+  sizeBytes  Int
+  mimeType   String
+  uploadedAt DateTime @default(now())
+
+  @@index([topicId])
+}
+
+/// Единственный источник видимости. Нет записи — темы для подгруппы не существует.
+model TopicRelease {
+  id         String    @id @default(cuid())
+  topicId    String
+  topic      Topic     @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  subgroupId String
+  subgroup   Subgroup  @relation(fields: [subgroupId], references: [id], onDelete: Cascade)
+  opensAt    DateTime
+  closesAt   DateTime? // null = без срока
+  createdAt  DateTime  @default(now())
+
+  @@unique([topicId, subgroupId])
+  @@index([subgroupId, opensAt])
+}
+
+// ─────────────────────────────────────────────  занятия и журнал
+
+/// Конкретная пара: тема + подгруппа + дата. Колонка журнала.
+model ClassSession {
+  id         String   @id @default(cuid())
+  topicId    String
+  topic      Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  subgroupId String
+  subgroup   Subgroup @relation(fields: [subgroupId], references: [id], onDelete: Cascade)
+  heldOn     DateTime @db.Date
+
+  attendance Attendance[]
+  grades     Grade[]
+
+  createdAt DateTime @default(now())
+
+  @@index([subgroupId, heldOn])
+  @@index([topicId])
+}
+
+model Attendance {
+  id        String       @id @default(cuid())
+  sessionId String
+  session   ClassSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  studentId String
+  student   User         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  status    AttendanceStatus
+  note      String?
+  madeUp    Boolean          @default(false) // пропуск отработан
+  markedAt  DateTime         @default(now())
+
+  @@unique([sessionId, studentId])
+  @@index([studentId])
+}
+
+// ─────────────────────────────────────────────  сдача практических
+
+model Submission {
+  id        String @id @default(cuid())
+  topicId   String
+  topic     Topic  @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  studentId String
+  student   User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  attempt        Int              @default(1)
+  fileKey        String?
+  fileName       String?
+  comment        String? // от студента
+  teacherComment String? // что исправить при возврате
+  status         SubmissionStatus @default(SUBMITTED)
+
+  submittedAt DateTime  @default(now())
+  reviewedAt  DateTime?
+
+  grade Grade?
+
+  @@unique([topicId, studentId, attempt])
+  @@index([status])
+  @@index([studentId])
+}
+
+/// Оценки не перезаписываются. Пересдача = новая запись с attempt + 1.
+model Grade {
+  id           String       @id @default(cuid())
+  sessionId    String
+  session      ClassSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      User         @relation("StudentGrades", fields: [studentId], references: [id], onDelete: Cascade)
+  submissionId String?      @unique
+  submission   Submission?  @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+
+  value    Int
+  attempt  Int     @default(1)
+  isRetake Boolean @default(false)
+  comment  String?
+
+  gradedById String
+  gradedBy   User     @relation("GradedBy", fields: [gradedById], references: [id])
+  gradedAt   DateTime @default(now())
+
+  @@unique([sessionId, studentId, attempt])
+  @@index([studentId])
+}
+
+// ─────────────────────────────────────────────  служебное
+
+model AuditLog {
+  id       String   @id @default(cuid())
+  actorId  String?
+  actor    User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action   String // "grade.update", "student.resetPassword", …
+  entity   String
+  entityId String
+  before   Json?
+  after    Json?
+  at       DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([at])
+}

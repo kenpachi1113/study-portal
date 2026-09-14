@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif;
+  --font-mono: "Cascadia Mono", "JetBrains Mono", ui-monospace, "Courier New", monospace;
+
+  --color-ink: #17211f;
+  --color-muted: #5c6b68;
+  --color-line: #dbe3e0;
+  --color-surface: #ffffff;
+  --color-canvas: #f4f6f5;
+  --color-brand: #0d6a5e;
+  --color-brand-soft: #dceee9;
+  --color-warn: #a9502a;
+  --color-warn-soft: #f6e7de;
+  --color-ok: #3f7a50;
+  --color-ok-soft: #e1efe3;
+}
+
+html,
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+/* Оформление лекций: содержание пишет преподаватель обычным HTML,
+   поэтому базовым тегам нужны стили — Tailwind их сбрасывает. */
+.prose-topic :is(h1, h2, h3) {
+  font-weight: 600;
+  line-height: 1.25;
+  margin-block: 0.6em 0.2em;
+}
+.prose-topic h1 { font-size: 1.35rem; }
+.prose-topic h2 { font-size: 1.15rem; }
+.prose-topic h3 { font-size: 1rem; }
+.prose-topic p { margin-block: 0.5em; }
+.prose-topic :is(ul, ol) {
+  margin-block: 0.5em;
+  padding-left: 1.4em;
+}
+.prose-topic ul { list-style: disc; }
+.prose-topic ol { list-style: decimal; }
+.prose-topic li { margin-block: 0.2em; }
+.prose-topic a {
+  color: var(--color-brand);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.prose-topic :is(code, kbd) {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--color-canvas);
+  border: 1px solid var(--color-line);
+  border-radius: 3px;
+  padding: 0.05em 0.35em;
+}
+.prose-topic pre {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  line-height: 1.6;
+  background: var(--color-canvas);
+  border: 1px solid var(--color-line);
+  border-radius: 4px;
+  padding: 0.9em 1.1em;
+  overflow-x: auto;
+  margin-block: 0.7em;
+}
+.prose-topic pre code {
+  background: none;
+  border: none;
+  padding: 0;
+}
+.prose-topic img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+.prose-topic table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-block: 0.7em;
+  font-size: 0.95em;
+}
+.prose-topic :is(th, td) {
+  border: 1px solid var(--color-line);
+  padding: 0.4em 0.6em;
+  text-align: left;
+}
+.prose-topic blockquote {
+  border-left: 3px solid var(--color-line);
+  padding-left: 1em;
+  color: var(--color-muted);
+  margin-block: 0.7em;
+}

@@ -1,0 +1,29 @@
+# Локальная база для разработки.
+#
+#   npm run db:up     поднять
+#   npm run db:down   остановить (данные останутся в томе)
+#
+# Порт 5433, а не 5432, — чтобы не столкнуться с Postgres,
+# который мог остаться установленным в системе с прошлых проектов.
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: study-portal-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: study
+      POSTGRES_PASSWORD: study
+      POSTGRES_DB: study
+    ports:
+      - "5433:5432"
+    volumes:
+      - study-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U study -d study"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  study-db:
