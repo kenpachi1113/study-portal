@@ -1,26 +1,22 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import Link from "next/link";
+import { useActionState } from "react";
 import {
   addTopicAction,
+  deleteTopicAction,
   moveTopicAction,
   type AddTopicState,
+  type DeleteTopicState,
   type MoveTopicState,
 } from "./actions";
-import { Alert, Button, Input, Select } from "@/components/ui";
+import { Alert, Button, Input, Select, cn } from "@/components/ui";
 
-export function AddTopicForm({
-  courses,
-  defaultCourseId,
-}: {
-  courses: { id: string; title: string }[];
-  defaultCourseId: string;
-}) {
+export function AddTopicForm() {
   const [state, action, pending] = useActionState<AddTopicState, FormData>(
     addTopicAction,
     {},
   );
-  const [addingCourse, setAddingCourse] = useState(courses.length === 0);
 
   return (
     <form action={action} className="flex flex-col gap-3">
@@ -46,84 +42,106 @@ export function AddTopicForm({
           </label>
         </div>
 
-        <div className="w-64">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium">Дисциплина</span>
-            {addingCourse ? (
-              <Input
-                name="newCourseTitle"
-                placeholder="Название дисциплины"
-                required
-              />
-            ) : (
-              <Select name="courseId" defaultValue={defaultCourseId}>
-                {courses.map((course) => (
-                  <option key={course.id} value={course.id}>
-                    {course.title}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </label>
-        </div>
-
         <Button type="submit" disabled={pending}>
           {pending ? "Создаём…" : "Добавить"}
         </Button>
       </div>
-
-      {courses.length > 0 ? (
-        <button
-          type="button"
-          onClick={() => setAddingCourse((v) => !v)}
-          className="self-start text-sm text-muted underline-offset-4 hover:text-ink hover:underline"
-        >
-          {addingCourse ? "выбрать из существующих" : "+ новая дисциплина"}
-        </button>
-      ) : null}
 
       {state.error ? <Alert>{state.error}</Alert> : null}
     </form>
   );
 }
 
-export function MoveTopicButtons({
-  topicId,
+export type TopicRowData = {
+  id: string;
+  title: string;
+  isPractice: boolean;
+  materials: number;
+  releases: number;
+};
+
+export function TopicRow({
+  topic,
   canUp,
   canDown,
 }: {
-  topicId: string;
+  topic: TopicRowData;
   canUp: boolean;
   canDown: boolean;
 }) {
-  const [, action, pending] = useActionState<MoveTopicState, FormData>(
+  const [, moveAction, moving] = useActionState<MoveTopicState, FormData>(
     moveTopicAction,
     {},
   );
+  const [deleteState, deleteAction, deleting] = useActionState<
+    DeleteTopicState,
+    FormData
+  >(deleteTopicAction, {});
 
   return (
-    <form action={action} className="flex items-center gap-0.5">
-      <input type="hidden" name="topicId" value={topicId} />
-      <button
-        type="submit"
-        name="direction"
-        value="up"
-        disabled={!canUp || pending}
-        aria-label="Выше"
-        className="rounded px-1.5 py-0.5 text-muted hover:bg-canvas hover:text-ink disabled:opacity-25"
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line py-2 last:border-b-0">
+      <form action={moveAction} className="flex items-center gap-0.5">
+        <input type="hidden" name="topicId" value={topic.id} />
+        <button
+          type="submit"
+          name="direction"
+          value="up"
+          disabled={!canUp || moving}
+          aria-label="Выше"
+          className="rounded px-1.5 text-muted hover:bg-canvas hover:text-ink disabled:opacity-25"
+        >
+          ↑
+        </button>
+        <button
+          type="submit"
+          name="direction"
+          value="down"
+          disabled={!canDown || moving}
+          aria-label="Ниже"
+          className="rounded px-1.5 text-muted hover:bg-canvas hover:text-ink disabled:opacity-25"
+        >
+          ↓
+        </button>
+      </form>
+
+      <Link
+        href={`/admin/topics/${topic.id}`}
+        className="font-medium text-brand underline-offset-4 hover:underline"
       >
-        ↑
-      </button>
-      <button
-        type="submit"
-        name="direction"
-        value="down"
-        disabled={!canDown || pending}
-        aria-label="Ниже"
-        className="rounded px-1.5 py-0.5 text-muted hover:bg-canvas hover:text-ink disabled:opacity-25"
+        {topic.title}
+      </Link>
+
+      <span
+        className={cn(
+          "rounded px-2 py-0.5 text-xs",
+          topic.isPractice ? "bg-brand-soft text-brand" : "bg-canvas text-muted",
+        )}
       >
-        ↓
-      </button>
-    </form>
+        {topic.isPractice ? "Практическая" : "Лекция"}
+      </span>
+
+      <span className="ml-auto flex items-center gap-3 text-xs text-muted">
+        {topic.materials > 0 ? <span>{topic.materials} файл.</span> : null}
+        <span className={topic.releases > 0 ? "text-ok" : undefined}>
+          {topic.releases > 0
+            ? `открыта ${topic.releases}`
+            : "не открыта"}
+        </span>
+        <form action={deleteAction}>
+          <input type="hidden" name="topicId" value={topic.id} />
+          <button
+            type="submit"
+            disabled={deleting}
+            className="underline-offset-4 hover:text-warn hover:underline disabled:opacity-40"
+          >
+            {deleting ? "…" : "Удалить"}
+          </button>
+        </form>
+      </span>
+
+      {deleteState.error ? (
+        <span className="w-full text-sm text-warn">{deleteState.error}</span>
+      ) : null}
+    </li>
   );
 }

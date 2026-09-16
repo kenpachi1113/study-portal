@@ -18,7 +18,7 @@ export default async function StudyLayout({
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="border-b border-line bg-surface">
-        <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-x-4 gap-y-1 px-6 py-3">
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 sm:px-6">
           <Link
             href="/study"
             className="font-mono text-xs tracking-widest text-brand uppercase"
@@ -45,7 +45,7 @@ export default async function StudyLayout({
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-3xl grow px-6 py-8">{children}</main>
+      <main className="mx-auto w-full max-w-3xl grow px-4 py-6 sm:px-6 sm:py-8">{children}</main>
     </div>
   );
 }

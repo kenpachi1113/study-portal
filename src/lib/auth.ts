@@ -41,8 +41,16 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 }
 
 export async function requireUser(): Promise<CurrentUser> {
+  const session = await readSession();
+  if (!session) redirect("/login");
+
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+
+  // Кука есть, а пользователя нет: базу пересоздали, аккаунт удалили или
+  // студента отчислили. Отправлять на /login нельзя — proxy увидит ту же
+  // куку и вернёт сюда же. Идём через /logout, он куку стирает.
+  if (!user) redirect("/logout");
+
   if (user.mustSetPassword) redirect("/set-password");
   return user;
 }

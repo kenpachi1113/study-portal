@@ -38,14 +38,14 @@ export default async function StudyTopicPage({
         <h1 className="text-2xl font-semibold tracking-tight text-balance">
           {topic.title}
         </h1>
-        <p className="text-sm text-muted">
-          {TOPIC_TYPE_LABEL[topic.type]} · {topic.course.title}
-        </p>
+        <p className="text-sm text-muted">{TOPIC_TYPE_LABEL[topic.type]}</p>
       </header>
 
       {topic.bodyHtml ? (
         <article
-          className="prose-topic flex flex-col gap-3 rounded border border-line bg-surface px-5 py-4 leading-relaxed"
+          // без flex: содержание — обычный поток, а не колонка;
+          // авторская вёрстка иначе получает лишние отступы между блоками
+          className="prose-topic rounded border border-line bg-surface px-5 py-4 leading-relaxed"
           // Содержание пишет только преподаватель — единственный автор в системе.
           // Студенты в это поле не пишут никогда. Если это когда-нибудь изменится,
           // здесь нужна санитизация, иначе получится XSS через лекцию.

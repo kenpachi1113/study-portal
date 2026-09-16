@@ -1,45 +1,29 @@
 "use client";
 
 import { useActionState } from "react";
-import {
-  deleteCourseAction,
-  updateCourseAction,
-  type CourseSettingsState,
-  type DeleteCourseState,
-} from "./actions";
-import { Alert, Button, Field, Input, Select } from "@/components/ui";
+import { updateGradingAction, type GradingState } from "./actions";
+import { Alert, Button, Field, Select } from "@/components/ui";
 
-export function CourseSettingsForm({
-  course,
+export function GradingForm({
+  maxGrade,
+  gradeRule,
 }: {
-  course: {
-    id: string;
-    title: string;
-    description: string | null;
-    maxGrade: number;
-    gradeRule: "LAST" | "BEST";
-  };
+  maxGrade: number;
+  gradeRule: "LAST" | "BEST";
 }) {
-  const [state, action, pending] = useActionState<
-    CourseSettingsState,
-    FormData
-  >(updateCourseAction, {});
+  const [state, action, pending] = useActionState<GradingState, FormData>(
+    updateGradingAction,
+    {},
+  );
 
   return (
     <form action={action} className="flex flex-col gap-4">
-      <input type="hidden" name="courseId" value={course.id} />
-
-      <Field label="Название">
-        <Input name="title" defaultValue={course.title} required />
-      </Field>
-
-      <Field label="Описание" hint="Необязательно">
-        <Input name="description" defaultValue={course.description ?? ""} />
-      </Field>
-
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Шкала оценок">
-          <Select name="maxGrade" defaultValue={String(course.maxGrade)}>
+        <Field
+          label="Шкала оценок"
+          hint="Ограничивает, что принимает ячейка журнала"
+        >
+          <Select name="maxGrade" defaultValue={String(maxGrade)}>
             <option value="5">Пятибалльная</option>
             <option value="12">Двенадцатибалльная</option>
             <option value="100">Стобалльная</option>
@@ -48,9 +32,9 @@ export function CourseSettingsForm({
 
         <Field
           label="Итог при пересдаче"
-          hint="По этому правилу журнал считает средний балл"
+          hint="По этому правилу считается средний балл"
         >
-          <Select name="gradeRule" defaultValue={course.gradeRule}>
+          <Select name="gradeRule" defaultValue={gradeRule}>
             <option value="LAST">По последней попытке</option>
             <option value="BEST">По лучшей попытке</option>
           </Select>
@@ -65,25 +49,6 @@ export function CourseSettingsForm({
           {pending ? "Сохраняем…" : "Сохранить"}
         </Button>
       </div>
-    </form>
-  );
-}
-
-export function DeleteCourseForm({ courseId }: { courseId: string }) {
-  const [state, action, pending] = useActionState<DeleteCourseState, FormData>(
-    deleteCourseAction,
-    {},
-  );
-
-  return (
-    <form action={action} className="flex flex-col gap-2">
-      <input type="hidden" name="courseId" value={courseId} />
-      <div>
-        <Button type="submit" variant="danger" disabled={pending}>
-          {pending ? "…" : "Удалить дисциплину"}
-        </Button>
-      </div>
-      {state.error ? <Alert>{state.error}</Alert> : null}
     </form>
   );
 }

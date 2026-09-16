@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "tunnel": "cloudflared tunnel --url http://localhost:3000",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
@@ -11,6 +12,7 @@
     "postinstall": "prisma generate",
     "setup:env": "node scripts/init-env.mjs",
     "db:up": "node scripts/db.mjs",
+    "db:reset": "node scripts/db-reset.mjs",
     "db:up:docker": "docker compose up -d db",
     "db:down:docker": "docker compose down",
     "db:migrate": "node scripts/check-env.mjs db && prisma migrate dev",

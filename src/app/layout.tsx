@@ -1,5 +1,13 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // масштабирование не запрещаем: студенту может понадобиться
+  // приблизить схему или таблицу в лекции
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   title: {

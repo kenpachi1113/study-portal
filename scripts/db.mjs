@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import EmbeddedPostgres from "embedded-postgres";
+import pg from "pg";
 
 /**
  * Временная локальная база: Postgres берётся из node_modules, данные лежат
@@ -10,13 +11,10 @@ import EmbeddedPostgres from "embedded-postgres";
  * Сервер запускается дочерним процессом и живёт, пока живёт этот скрипт, —
  * как `next dev`. То есть база занимает одно окно терминала, разработка идёт
  * во втором.
- *
- * Когда дойдёт до переезда на облачную базу: данные отсюда снимаются обычным
- * pg_dump, схема переносится миграциями Prisma — они уже лежат в
- * prisma/migrations.
  */
 
 const DATA_DIR = resolve(process.cwd(), ".pgdata");
+const DB_NAME = "study";
 
 const options = {
   databaseDir: DATA_DIR,
@@ -24,25 +22,72 @@ const options = {
   password: "study",
   port: 5433,
   persistent: true,
+  /**
+   * Кодировку задаём явно.
+   *
+   * На Windows initdb берёт её из системной локали и на русской системе
+   * создаёт кластер в WIN1251. Тогда любой символ вне этой кодировки —
+   * стрелка →, длинное тире, эмодзи — не сохраняется вообще: база отвечает
+   * «character has no equivalent in encoding WIN1251». Для текстов лекций
+   * это смертельно.
+   */
+  initdbFlags: ["--encoding=UTF8", "--no-locale"],
 };
 
-const pg = new EmbeddedPostgres(options);
+const pgServer = new EmbeddedPostgres(options);
 const firstRun = !existsSync(DATA_DIR);
 
 if (firstRun) {
   console.log("  Первый запуск: создаю кластер в .pgdata …");
-  await pg.initialise();
+  await pgServer.initialise();
 }
 
-await pg.start();
+await pgServer.start();
 
 if (firstRun) {
-  await pg.createDatabase("study");
-  console.log("  База study создана.");
+  await pgServer.createDatabase(DB_NAME);
+  console.log(`  База ${DB_NAME} создана.`);
+}
+
+/** Кластер мог быть создан раньше, ещё без явной кодировки. */
+async function checkEncoding() {
+  const client = new pg.Client({
+    connectionString: `postgresql://${options.user}:${options.password}@localhost:${options.port}/${DB_NAME}`,
+  });
+  try {
+    await client.connect();
+    const { rows } = await client.query(
+      "select pg_encoding_to_char(encoding) as enc from pg_database where datname = $1",
+      [DB_NAME],
+    );
+    return rows[0]?.enc ?? null;
+  } catch {
+    return null;
+  } finally {
+    await client.end().catch(() => {});
+  }
+}
+
+const encoding = await checkEncoding();
+
+if (encoding && encoding !== "UTF8") {
+  console.log(`
+  ВНИМАНИЕ: база создана в кодировке ${encoding}, а не UTF8.
+
+  В такой базе не сохранятся стрелки, длинные тире и эмодзи — при
+  сохранении темы вы получите ошибку «no equivalent in encoding».
+
+  Лечится пересозданием базы (данные будут потеряны):
+
+      Ctrl+C, затем
+      npm run db:reset
+      npm run db:up
+`);
 }
 
 console.log(`
   Postgres слушает localhost:${options.port}
+  Кодировка: ${encoding ?? "неизвестна"}
   Данные:  .pgdata (в папке проекта, в git не попадает)
 
   Это окно закрывать нельзя — база живёт, пока работает скрипт.
@@ -57,7 +102,7 @@ async function shutdown() {
   stopping = true;
   console.log("\n  Останавливаю базу…");
   try {
-    await pg.stop();
+    await pgServer.stop();
   } catch {
     // уже упал — не о чем горевать
   }

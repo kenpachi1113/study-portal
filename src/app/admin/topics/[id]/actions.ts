@@ -217,6 +217,30 @@ export async function setReleaseAction(
     update: { opensAt, closesAt },
   });
 
+  // Открыли тему подгруппе — значит будет пара. Колонка в журнале появляется
+  // сама, чтобы не заводить каждое занятие вторым заходом.
+  const session = await prisma.classSession.findFirst({
+    where: { topicId, subgroupId },
+    include: { _count: { select: { grades: true, attendance: true } } },
+  });
+
+  if (!session) {
+    await prisma.classSession.create({
+      data: { topicId, subgroupId, heldOn: opensAt },
+    });
+  } else if (
+    session._count.grades === 0 &&
+    session._count.attendance === 0 &&
+    session.heldOn.getTime() !== opensAt.getTime()
+  ) {
+    // дату двигаем только пока по занятию ничего не проставлено:
+    // иначе оценки уехали бы на чужое число
+    await prisma.classSession.update({
+      where: { id: session.id },
+      data: { heldOn: opensAt },
+    });
+  }
+
   await audit({
     actorId: teacher.id,
     action: "topic.release",

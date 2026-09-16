@@ -40,3 +40,20 @@ export const TOPIC_TYPE_LABEL: Record<"LECTURE" | "PRACTICE", string> = {
   LECTURE: "Лекция",
   PRACTICE: "Практическая",
 };
+
+const nameCollator = new Intl.Collator("ru", { sensitivity: "base" });
+
+/**
+ * Сортировка ФИО по-русски.
+ *
+ * Не полагаемся на ORDER BY: локальная база создаётся с сортировкой C,
+ * то есть по кодам символов, и «Ёлкин» оказался бы перед «Абрамовым».
+ * Порядок списка студентов важнее, чем экономия на сортировке в базе.
+ */
+export function compareNames(
+  a: { lastName: string; firstName: string },
+  b: { lastName: string; firstName: string },
+): number {
+  const byLast = nameCollator.compare(a.lastName, b.lastName);
+  return byLast !== 0 ? byLast : nameCollator.compare(a.firstName, b.firstName);
+}

@@ -4,17 +4,16 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireTeacher } from "@/lib/auth";
+import { getPrimaryCourse } from "@/lib/course";
 import { audit } from "@/lib/audit";
 
 export type AddTopicState = { error?: string };
 
 /**
- * Добавление темы прямо из списка занятий.
+ * Добавление темы: название и тип, больше ничего.
  *
- * Дисциплина выбирается из списка, а если её ещё нет — вписывается тут же.
- * Отдельного экрана «создайте курс, укажите шкалу оценок» больше нет: шкала
- * и правило пересдачи имеют разумные умолчания и правятся в настройках
- * дисциплины, куда можно не заходить никогда.
+ * Куда её положить, система решает сама — предмет один (см. lib/course.ts),
+ * и спрашивать об этом на каждой теме незачем.
  */
 export async function addTopicAction(
   _prev: AddTopicState,
@@ -24,51 +23,21 @@ export async function addTopicAction(
 
   const title = String(formData.get("title") ?? "").trim();
   const type = String(formData.get("type") ?? "LECTURE");
-  const courseId = String(formData.get("courseId") ?? "").trim();
-  const newCourseTitle = String(formData.get("newCourseTitle") ?? "").trim();
 
   if (!title) return { error: "Укажите название темы" };
   if (type !== "LECTURE" && type !== "PRACTICE")
     return { error: "Тип темы — лекция или практическая" };
 
-  let targetCourseId = courseId;
-
-  if (newCourseTitle) {
-    const created = await prisma.course.create({
-      data: { title: newCourseTitle },
-    });
-    targetCourseId = created.id;
-    await audit({
-      actorId: teacher.id,
-      action: "course.create",
-      entity: "Course",
-      entityId: created.id,
-      after: { title: newCourseTitle },
-    });
-  }
-
-  if (!targetCourseId) {
-    // ни выбранной дисциплины, ни новой — заводим первую по умолчанию
-    const first = await prisma.course.findFirst({ orderBy: { createdAt: "asc" } });
-    if (first) {
-      targetCourseId = first.id;
-    } else {
-      const created = await prisma.course.create({
-        data: { title: "Информатика" },
-      });
-      targetCourseId = created.id;
-    }
-  }
+  const course = await getPrimaryCourse();
 
   const last = await prisma.topic.findFirst({
-    where: { courseId: targetCourseId },
     orderBy: { order: "desc" },
     select: { order: true },
   });
 
   const topic = await prisma.topic.create({
     data: {
-      courseId: targetCourseId,
+      courseId: course.id,
       title,
       type,
       order: (last?.order ?? 0) + 1,
@@ -80,11 +49,62 @@ export async function addTopicAction(
     action: "topic.create",
     entity: "Topic",
     entityId: topic.id,
-    after: { courseId: targetCourseId, title, type },
+    after: { courseId: course.id, title, type },
   });
 
   revalidatePath("/admin/lessons");
   redirect(`/admin/topics/${topic.id}`);
+}
+
+export type DeleteTopicState = { error?: string };
+
+/**
+ * Удаление темы. Вместе с ней уходят материалы, выдачи доступа и занятия —
+ * а с занятиями ушли бы оценки и посещаемость, поэтому тема с проставленными
+ * отметками не удаляется. Сначала очистить колонку в журнале.
+ */
+export async function deleteTopicAction(
+  _prev: DeleteTopicState,
+  formData: FormData,
+): Promise<DeleteTopicState> {
+  const teacher = await requireTeacher();
+
+  const topicId = String(formData.get("topicId") ?? "");
+  const topic = await prisma.topic.findUnique({
+    where: { id: topicId },
+    select: { id: true, title: true, courseId: true },
+  });
+  if (!topic) return { error: "Тема не найдена" };
+
+  const [grades, attendance, submissions] = await Promise.all([
+    prisma.grade.count({ where: { session: { topicId } } }),
+    prisma.attendance.count({ where: { session: { topicId } } }),
+    prisma.submission.count({ where: { topicId } }),
+  ]);
+
+  const marks = grades + attendance;
+  if (marks > 0)
+    return {
+      error: `По теме уже есть отметки в журнале (${marks}) — сначала очистите колонку`,
+    };
+
+  if (submissions > 0)
+    return {
+      error: `По теме есть сданные работы (${submissions}) — удаление унесло бы их`,
+    };
+
+  await prisma.topic.delete({ where: { id: topicId } });
+
+  await audit({
+    actorId: teacher.id,
+    action: "topic.delete",
+    entity: "Topic",
+    entityId: topicId,
+    before: { title: topic.title, courseId: topic.courseId },
+  });
+
+  revalidatePath("/admin/lessons");
+  return {};
 }
 
 export type MoveTopicState = { error?: string };
@@ -105,9 +125,9 @@ export async function moveTopicAction(
   });
   if (!topic) return { error: "Тема не найдена" };
 
+  // список тем один на всё, поэтому и соседа ищем по всему списку
   const neighbour = await prisma.topic.findFirst({
     where: {
-      courseId: topic.courseId,
       order: direction === "up" ? { lt: topic.order } : { gt: topic.order },
     },
     orderBy: { order: direction === "up" ? "desc" : "asc" },

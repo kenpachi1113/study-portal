@@ -28,17 +28,12 @@ const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString }),
 });
 
-/** Дисциплины по умолчанию — чтобы при первом входе не встречать пустой экран. */
-const DISCIPLINES = [
-  {
-    title: "Информатика",
-    description: "ОД.08 · Сестринское дело 34.02.01",
-  },
-  {
-    title: "Информационные технологии в профессиональной деятельности",
-    description: "ОП.08 · Лечебное дело 31.02.01",
-  },
-];
+/**
+ * Курс, к которому привязываются все темы. В интерфейсе его не видно:
+ * предмет один, и выбирать его при каждой теме незачем. Здесь он заводится
+ * заранее, чтобы на нём сразу были шкала оценок и правило пересдачи.
+ */
+const DEFAULT_COURSE = { title: "Основной курс" };
 
 async function seedTeacher() {
   const login = (process.env.TEACHER_LOGIN ?? "teacher").toLowerCase();
@@ -69,28 +64,20 @@ async function seedTeacher() {
   console.log("  Сохраните пароль — второй раз он показан не будет.\n");
 }
 
-/**
- * Дисциплины заводятся здесь, чтобы при первом входе не встречал экран
- * «создайте курс». Идемпотентно: существующие не трогаются, названия можно
- * спокойно править в настройках — повторный сид их не вернёт обратно.
- */
-async function seedDisciplines() {
+async function seedCourse() {
   const count = await prisma.course.count();
   if (count > 0) {
-    console.log(`  Дисциплины уже заведены (${count}) — не трогаю.`);
+    console.log("  Курс уже есть — не трогаю.");
     return;
   }
 
-  for (const discipline of DISCIPLINES) {
-    await prisma.course.create({ data: discipline });
-  }
-
-  console.log(`  Заведено дисциплин: ${DISCIPLINES.length}`);
+  await prisma.course.create({ data: DEFAULT_COURSE });
+  console.log("  Курс создан.");
 }
 
 async function main() {
   await seedTeacher();
-  await seedDisciplines();
+  await seedCourse();
   console.log("");
 }
 

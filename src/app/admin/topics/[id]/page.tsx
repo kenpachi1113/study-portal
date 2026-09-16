@@ -60,10 +60,10 @@ export default async function TopicPage({
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-1">
         <Link
-          href={`/admin/lessons?course=${topic.courseId}`}
+          href="/admin/lessons"
           className="font-mono text-xs tracking-widest text-muted uppercase hover:text-ink"
         >
-          ← {topic.course.title}
+          ← занятия
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight text-balance">
           {topic.title}
@@ -82,6 +82,36 @@ export default async function TopicPage({
           }}
         />
       </Card>
+
+      {topic.bodyHtml || topic.taskHtml ? (
+        <Card
+          title="Предпросмотр"
+          description="Так это увидит студент. Обновляется после сохранения"
+        >
+          <div className="flex flex-col gap-5">
+            {topic.bodyHtml ? (
+              <article
+                className="prose-topic leading-relaxed"
+                // Автор содержания — преподаватель, он же смотрит этот
+                // предпросмотр. Санитизации нет намеренно, см. README.
+                dangerouslySetInnerHTML={{ __html: topic.bodyHtml }}
+              />
+            ) : null}
+
+            {topic.taskHtml ? (
+              <div className="flex flex-col gap-2 border-t border-line pt-5">
+                <span className="font-mono text-[11px] tracking-widest text-muted uppercase">
+                  Задание
+                </span>
+                <div
+                  className="prose-topic leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: topic.taskHtml }}
+                />
+              </div>
+            ) : null}
+          </div>
+        </Card>
+      ) : null}
 
       <Card
         title="Материалы"

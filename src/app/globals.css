@@ -35,6 +35,21 @@ body {
 
 /* Оформление лекций: содержание пишет преподаватель обычным HTML,
    поэтому базовым тегам нужны стили — Tailwind их сбрасывает. */
+.prose-topic {
+  /* длинные ссылки и termины не должны растягивать страницу на телефоне */
+  overflow-wrap: break-word;
+}
+/* Широкое содержимое прокручивается внутри себя, а не уносит вбок всю
+   страницу. Только для тегов без своей вёрстки — у авторской обычно
+   уже есть свой контейнер с прокруткой. */
+.prose-topic table:not([style]) {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.prose-topic :is(pre, img, video, iframe):not([style]) {
+  max-width: 100%;
+}
 .prose-topic :is(h1, h2, h3) {
   font-weight: 600;
   line-height: 1.25;
@@ -56,7 +71,11 @@ body {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-.prose-topic :is(code, kbd) {
+/* Оформление «по умолчанию» — только для тегов без собственного style.
+   Если преподаватель написал свой стиль, портал в него не лезет:
+   иначе вёрстка лекции ломается наполовину — свои цвета остаются,
+   а фон и рамки приезжают чужие. */
+.prose-topic :is(code, kbd):not([style]) {
   font-family: var(--font-mono);
   font-size: 0.9em;
   background: var(--color-canvas);
@@ -64,7 +83,7 @@ body {
   border-radius: 3px;
   padding: 0.05em 0.35em;
 }
-.prose-topic pre {
+.prose-topic pre:not([style]) {
   font-family: var(--font-mono);
   font-size: 0.85rem;
   line-height: 1.6;
@@ -75,7 +94,7 @@ body {
   overflow-x: auto;
   margin-block: 0.7em;
 }
-.prose-topic pre code {
+.prose-topic pre code:not([style]) {
   background: none;
   border: none;
   padding: 0;
@@ -91,12 +110,12 @@ body {
   margin-block: 0.7em;
   font-size: 0.95em;
 }
-.prose-topic :is(th, td) {
+.prose-topic :is(th, td):not([style]) {
   border: 1px solid var(--color-line);
   padding: 0.4em 0.6em;
   text-align: left;
 }
-.prose-topic blockquote {
+.prose-topic blockquote:not([style]) {
   border-left: 3px solid var(--color-line);
   padding-left: 1em;
   color: var(--color-muted);

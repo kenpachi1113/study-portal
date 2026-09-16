@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { fullName, requireTeacher } from "@/lib/auth";
 import { LOGIN_CODE_TTL_DAYS } from "@/lib/password";
+import { compareNames } from "@/lib/format";
 import { Card, Empty } from "@/components/ui";
 import { ImportPanel } from "./ImportPanel";
 import { StudentRow, type StudentRowData } from "./StudentRow";
@@ -28,13 +29,17 @@ export default async function SubgroupPage({
     where: { id },
     include: {
       group: true,
-      students: {
-        orderBy: [{ isActive: "desc" }, { lastName: "asc" }, { firstName: "asc" }],
-      },
+      students: true,
     },
   });
 
   if (!subgroup) notFound();
+
+  // активные сверху, внутри — по алфавиту (сортировка русская, см. lib/format)
+  subgroup.students.sort(
+    (a, b) =>
+      Number(b.isActive) - Number(a.isActive) || compareNames(a, b),
+  );
 
   const students: StudentRowData[] = subgroup.students.map((s) => ({
     id: s.id,

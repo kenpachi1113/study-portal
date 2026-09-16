@@ -14,7 +14,12 @@ const NAV = [
   {
     href: "/admin/lessons",
     label: "Занятия",
-    owns: ["/admin/lessons", "/admin/topics", "/admin/courses"],
+    owns: ["/admin/lessons", "/admin/topics", "/admin/courses", "/admin/grading"],
+  },
+  {
+    href: "/admin/journal",
+    label: "Журнал",
+    owns: ["/admin/journal"],
   },
   {
     href: "/admin/groups",
