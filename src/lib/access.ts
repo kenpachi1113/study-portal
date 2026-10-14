@@ -87,6 +87,9 @@ export async function listTopicsForCurrentStudent() {
         orderBy: { attempt: "desc" },
         take: 1,
       },
+      quiz: {
+        select: { isOpen: true, _count: { select: { questions: true } } },
+      },
     },
   });
 }

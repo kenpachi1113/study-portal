@@ -28,6 +28,12 @@ export default async function TopicPage({
         course: true,
         materials: { orderBy: { uploadedAt: "asc" } },
         releases: true,
+        quiz: {
+          select: {
+            isOpen: true,
+            _count: { select: { questions: true } },
+          },
+        },
       },
     }),
     prisma.subgroup.findMany({
@@ -55,6 +61,14 @@ export default async function TopicPage({
   });
 
   const today = toDateInput(new Date());
+  const isTest = topic.type === "TEST";
+
+  const quizPending = topic.quiz
+    ? await prisma.quizAttempt.count({
+        where: { quiz: { topicId: topic.id }, status: "SUBMITTED" },
+      })
+    : 0;
+  const quizQuestions = topic.quiz?._count.questions ?? 0;
 
   return (
     <div className="flex flex-col gap-8">
@@ -83,7 +97,7 @@ export default async function TopicPage({
         />
       </Card>
 
-      {topic.bodyHtml || topic.taskHtml ? (
+      {!isTest && (topic.bodyHtml || topic.taskHtml) ? (
         <Card
           title="Предпросмотр"
           description="Так это увидит студент. Обновляется после сохранения"
@@ -113,6 +127,7 @@ export default async function TopicPage({
         </Card>
       ) : null}
 
+      {!isTest ? (
       <Card
         title="Материалы"
         description="Файлы уходят в хранилище напрямую из браузера, мимо сервера"
@@ -138,6 +153,47 @@ export default async function TopicPage({
           <MaterialUploader topicId={topic.id} maxBytes={MAX_UPLOAD_BYTES} />
         </div>
       </Card>
+      ) : null}
+
+      {isTest || topic.quiz ? (
+      <Card
+        title="Вопросы теста"
+        description="Проверяется автоматически, в журнал попадает после вашего подтверждения"
+      >
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          {quizQuestions > 0 ? (
+            <>
+              <span className="text-sm">
+                {quizQuestions} вопр. ·{" "}
+                <span className={topic.quiz?.isOpen ? "text-ok" : "text-muted"}>
+                  {topic.quiz?.isOpen ? "открыт студентам" : "скрыт от студентов"}
+                </span>
+              </span>
+              <Link
+                href={`/admin/topics/${topic.id}/test`}
+                className="text-sm text-brand underline-offset-4 hover:underline"
+              >
+                Редактировать
+              </Link>
+              <Link
+                href={`/admin/topics/${topic.id}/test/results`}
+                className="text-sm text-brand underline-offset-4 hover:underline"
+              >
+                Результаты
+                {quizPending > 0 ? ` · ждут подтверждения: ${quizPending}` : ""}
+              </Link>
+            </>
+          ) : (
+            <Link
+              href={`/admin/topics/${topic.id}/test`}
+              className="text-sm text-brand underline-offset-4 hover:underline"
+            >
+              + Добавить вопросы
+            </Link>
+          )}
+        </div>
+      </Card>
+      ) : null}
 
       <Card
         title="Кому открыта"

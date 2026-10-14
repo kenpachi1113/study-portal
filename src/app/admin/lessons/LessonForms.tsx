@@ -11,6 +11,7 @@ import {
   type MoveTopicState,
 } from "./actions";
 import { Alert, Button, Input, Select, cn } from "@/components/ui";
+import { TOPIC_TYPE_LABEL, type TopicType } from "@/lib/format";
 
 export function AddTopicForm() {
   const [state, action, pending] = useActionState<AddTopicState, FormData>(
@@ -38,6 +39,7 @@ export function AddTopicForm() {
             <Select name="type" defaultValue="LECTURE">
               <option value="LECTURE">Лекция</option>
               <option value="PRACTICE">Практическая</option>
+              <option value="TEST">Тест</option>
             </Select>
           </label>
         </div>
@@ -55,7 +57,7 @@ export function AddTopicForm() {
 export type TopicRowData = {
   id: string;
   title: string;
-  isPractice: boolean;
+  type: TopicType;
   materials: number;
   releases: number;
 };
@@ -114,10 +116,12 @@ export function TopicRow({
       <span
         className={cn(
           "rounded px-2 py-0.5 text-xs",
-          topic.isPractice ? "bg-brand-soft text-brand" : "bg-canvas text-muted",
+          topic.type === "PRACTICE" && "bg-brand-soft text-brand",
+          topic.type === "TEST" && "bg-ok-soft text-ok",
+          topic.type === "LECTURE" && "bg-canvas text-muted",
         )}
       >
-        {topic.isPractice ? "Практическая" : "Лекция"}
+        {TOPIC_TYPE_LABEL[topic.type]}
       </span>
 
       <span className="ml-auto flex items-center gap-3 text-xs text-muted">

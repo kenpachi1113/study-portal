@@ -129,7 +129,7 @@ export default async function JournalPage({
     id: s.id,
     dateLabel: dayShort.format(s.heldOn),
     topicTitle: s.topic.title,
-    isPractice: s.topic.type === "PRACTICE",
+    isPractice: s.topic.type !== "LECTURE",
   }));
 
   const gridStudents: GridStudent[] = subgroup.students.map((student) => {
@@ -182,7 +182,7 @@ export default async function JournalPage({
                     dateInput: toDateInput(s.heldOn),
                     dateLabel: dayShort.format(s.heldOn),
                     topicTitle: s.topic.title,
-                    isPractice: s.topic.type === "PRACTICE",
+                    isPractice: s.topic.type !== "LECTURE",
                     marks: s.grades.length + s.attendance.length,
                   }}
                 />
@@ -196,7 +196,11 @@ export default async function JournalPage({
             topics={topics.map((t) => ({
               id: t.id,
               label:
-                t.type === "PRACTICE" ? `${t.title} · практическая` : t.title,
+                t.type === "PRACTICE"
+                  ? `${t.title} · практическая`
+                  : t.type === "TEST"
+                    ? `${t.title} · тест`
+                    : t.title,
             }))}
           />
         </div>

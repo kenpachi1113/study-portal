@@ -48,11 +48,19 @@ export default async function StudyPage() {
                     "rounded px-2 py-0.5 text-xs",
                     topic.type === "PRACTICE"
                       ? "bg-brand-soft text-brand"
-                      : "bg-canvas text-muted",
+                      : topic.type === "TEST"
+                        ? "bg-ok-soft text-ok"
+                        : "bg-canvas text-muted",
                   )}
                 >
                   {TOPIC_TYPE_LABEL[topic.type]}
                 </span>
+
+                {topic.type !== "TEST" &&
+                topic.quiz?.isOpen &&
+                topic.quiz._count.questions > 0 ? (
+                  <Badge tone="muted">тест</Badge>
+                ) : null}
 
                 {topic.type === "PRACTICE" ? (
                   <StatusBadge status={submission?.status} overdue={overdue} />

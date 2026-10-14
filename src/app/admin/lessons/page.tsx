@@ -16,7 +16,8 @@ export default async function LessonsPage() {
   });
 
   const lectures = topics.filter((t) => t.type === "LECTURE").length;
-  const practices = topics.length - lectures;
+  const practices = topics.filter((t) => t.type === "PRACTICE").length;
+  const tests = topics.filter((t) => t.type === "TEST").length;
 
   return (
     <div className="flex flex-col gap-8">
@@ -36,7 +37,7 @@ export default async function LessonsPage() {
         title="Список тем"
         description={
           topics.length > 0
-            ? `${lectures} лекций · ${practices} практических`
+            ? `${lectures} лекций · ${practices} практических · ${tests} тестов`
             : undefined
         }
         actions={
@@ -58,7 +59,7 @@ export default async function LessonsPage() {
                 topic={{
                   id: topic.id,
                   title: topic.title,
-                  isPractice: topic.type === "PRACTICE",
+                  type: topic.type,
                   materials: topic._count.materials,
                   releases: topic._count.releases,
                 }}

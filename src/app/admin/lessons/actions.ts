@@ -25,7 +25,7 @@ export async function addTopicAction(
   const type = String(formData.get("type") ?? "LECTURE");
 
   if (!title) return { error: "Укажите название темы" };
-  if (type !== "LECTURE" && type !== "PRACTICE")
+  if (type !== "LECTURE" && type !== "PRACTICE" && type !== "TEST")
     return { error: "Тип темы — лекция или практическая" };
 
   const course = await getPrimaryCourse();
@@ -76,10 +76,13 @@ export async function deleteTopicAction(
   });
   if (!topic) return { error: "Тема не найдена" };
 
-  const [grades, attendance, submissions] = await Promise.all([
+  const [grades, attendance, submissions, quizAttempts] = await Promise.all([
     prisma.grade.count({ where: { session: { topicId } } }),
     prisma.attendance.count({ where: { session: { topicId } } }),
     prisma.submission.count({ where: { topicId } }),
+    prisma.quizAttempt.count({
+      where: { quiz: { topicId }, status: { in: ["SUBMITTED", "CONFIRMED"] } },
+    }),
   ]);
 
   const marks = grades + attendance;
@@ -91,6 +94,11 @@ export async function deleteTopicAction(
   if (submissions > 0)
     return {
       error: `По теме есть сданные работы (${submissions}) — удаление унесло бы их`,
+    };
+
+  if (quizAttempts > 0)
+    return {
+      error: `По теме есть пройденные тесты (${quizAttempts}) — удаление унесло бы результаты`,
     };
 
   await prisma.topic.delete({ where: { id: topicId } });

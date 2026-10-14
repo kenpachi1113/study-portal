@@ -30,6 +30,7 @@ enum Role {
 enum TopicType {
   LECTURE
   PRACTICE
+  TEST // отдельный тест: по одной теме, по нескольким или за семестр
 }
 
 enum AttendanceStatus {
@@ -64,10 +65,10 @@ model Group {
 }
 
 model Subgroup {
-  id       String @id @default(cuid())
-  groupId  String
-  group    Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  title    String // «1», «2»
+  id      String @id @default(cuid())
+  groupId String
+  group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  title   String // «1», «2»
 
   students User[]
   releases TopicRelease[]
@@ -83,10 +84,10 @@ model User {
   firstName  String
   middleName String?
 
-  role         Role      @default(STUDENT)
-  subgroupId   String?
-  subgroup     Subgroup? @relation(fields: [subgroupId], references: [id], onDelete: SetNull)
-  isActive     Boolean   @default(true) // отчисленный = false, оценки остаются
+  role       Role      @default(STUDENT)
+  subgroupId String?
+  subgroup   Subgroup? @relation(fields: [subgroupId], references: [id], onDelete: SetNull)
+  isActive   Boolean   @default(true) // отчисленный = false, оценки остаются
 
   // вход без почты: одноразовый код → обязательная смена пароля
   passwordHash       String?
@@ -101,11 +102,12 @@ model User {
 
   createdAt DateTime @default(now())
 
-  attendance  Attendance[]
-  submissions Submission[]
-  grades      Grade[]      @relation("StudentGrades")
-  gradesGiven Grade[]      @relation("GradedBy")
-  auditLogs   AuditLog[]
+  attendance   Attendance[]
+  submissions  Submission[]
+  grades       Grade[]       @relation("StudentGrades")
+  gradesGiven  Grade[]       @relation("GradedBy")
+  auditLogs    AuditLog[]
+  quizAttempts QuizAttempt[]
 
   @@index([subgroupId])
   @@index([role])
@@ -138,6 +140,7 @@ model Topic {
   releases    TopicRelease[]
   sessions    ClassSession[]
   submissions Submission[]
+  quiz        Quiz?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -200,10 +203,10 @@ model Attendance {
   studentId String
   student   User         @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
-  status    AttendanceStatus
-  note      String?
-  madeUp    Boolean          @default(false) // пропуск отработан
-  markedAt  DateTime         @default(now())
+  status   AttendanceStatus
+  note     String?
+  madeUp   Boolean          @default(false) // пропуск отработан
+  markedAt DateTime         @default(now())
 
   @@unique([sessionId, studentId])
   @@index([studentId])
@@ -254,7 +257,85 @@ model Grade {
   gradedBy   User     @relation("GradedBy", fields: [gradedById], references: [id])
   gradedAt   DateTime @default(now())
 
+  quizAttempt QuizAttempt?
+
   @@unique([sessionId, studentId, attempt])
+  @@index([studentId])
+}
+
+// ─────────────────────────────────────────────  тесты
+//
+// Тест висит на теме: видимость и колонка журнала берутся оттуда же,
+// отдельно открывать тест подгруппам не нужно.
+// Оценка в журнал попадает только после подтверждения преподавателем.
+
+enum QuestionType {
+  SINGLE // один верный
+  MULTIPLE // несколько верных
+  TEXT // короткий ответ текстом
+  MATCHING // сопоставление пар
+}
+
+enum QuizAttemptStatus {
+  IN_PROGRESS // начат, не отправлен
+  SUBMITTED // отправлен, ждёт подтверждения
+  CONFIRMED // оценка ушла в журнал
+  ANNULLED // аннулирован преподавателем — попытка не считается
+}
+
+model Quiz {
+  id           String  @id @default(cuid())
+  topicId      String  @unique
+  topic        Topic   @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  isOpen       Boolean @default(false) // студенты видят тест, только когда он включён
+  maxAttempts  Int     @default(1)
+  timeLimitMin Int? // null = без ограничения
+  showScore    Boolean @default(true) // показать студенту набранные баллы после отправки
+
+  questions QuizQuestion[]
+  attempts  QuizAttempt[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model QuizQuestion {
+  id     String       @id @default(cuid())
+  quizId String
+  quiz   Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  order  Int
+  type   QuestionType
+  text   String
+  points Int          @default(1)
+  /// варианты, верные ответы или пары — формат см. src/lib/quiz.ts
+  data   Json
+
+  @@index([quizId, order])
+}
+
+model QuizAttempt {
+  id        String            @id @default(cuid())
+  quizId    String
+  quiz      Quiz              @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  studentId String
+  student   User              @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  number    Int
+  status    QuizAttemptStatus @default(IN_PROGRESS)
+
+  /// снимок вопросов на момент начала: правка теста не меняет уже начатые попытки
+  snapshot Json
+  answers  Json?
+  score    Float?
+  maxScore Float?
+
+  startedAt   DateTime  @default(now())
+  submittedAt DateTime?
+
+  gradeId String? @unique
+  grade   Grade?  @relation(fields: [gradeId], references: [id], onDelete: SetNull)
+
+  @@unique([quizId, studentId, number])
+  @@index([quizId, status])
   @@index([studentId])
 }
 

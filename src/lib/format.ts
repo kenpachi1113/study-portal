@@ -36,9 +36,12 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`;
 }
 
-export const TOPIC_TYPE_LABEL: Record<"LECTURE" | "PRACTICE", string> = {
+export type TopicType = "LECTURE" | "PRACTICE" | "TEST";
+
+export const TOPIC_TYPE_LABEL: Record<TopicType, string> = {
   LECTURE: "Лекция",
   PRACTICE: "Практическая",
+  TEST: "Тест",
 };
 
 const nameCollator = new Intl.Collator("ru", { sensitivity: "base" });

@@ -29,8 +29,8 @@ export async function saveTopicAction(
   const maxScoreRaw = String(formData.get("maxScore") ?? "").trim();
 
   if (!title) return { error: "Название не может быть пустым" };
-  if (type !== "LECTURE" && type !== "PRACTICE")
-    return { error: "Тип темы — лекция или практическая" };
+  if (type !== "LECTURE" && type !== "PRACTICE" && type !== "TEST")
+    return { error: "Тип — лекция, практическая или тест" };
 
   const maxScore = maxScoreRaw ? Number(maxScoreRaw) : null;
   if (maxScore !== null && (!Number.isInteger(maxScore) || maxScore <= 0))
